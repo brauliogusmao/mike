@@ -247,7 +247,7 @@ userRouter.put("/api-keys/:provider", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("[user/api-keys] save failed", {
       provider,
-      error: err instanceof Error ? err.message : String(err),
+      error: err instanceof Error ? err.message : JSON.stringify(err),
     });
     res.status(500).json({ detail: "Failed to save API key" });
   }

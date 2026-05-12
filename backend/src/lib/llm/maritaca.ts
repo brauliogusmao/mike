@@ -24,7 +24,8 @@ function apiKey(override?: string | null): string {
 
 function extractSseJson(buffer: string): { events: unknown[]; rest: string } {
     const events: unknown[] = [];
-    const chunks = buffer.split(/\n\n/);
+    // Maritaca usa \r\n\r\n como separador; suportamos ambos os formatos
+    const chunks = buffer.split(/\r?\n\r?\n/);
     const rest = chunks.pop() ?? "";
 
     for (const chunk of chunks) {
@@ -182,7 +183,8 @@ export async function streamMaritaca(
             const { done, value } = await reader.read();
             if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
             const { events, rest } = extractSseJson(buffer);
             buffer = rest;
 
