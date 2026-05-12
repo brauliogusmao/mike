@@ -13,6 +13,11 @@ import type {
 
 const MARITACA_BASE_URL = "https://chat.maritaca.ai/api";
 const MAX_OUTPUT_TOKENS = 8192;
+// Hard limit per streaming session — if Maritaca stops responding mid-stream
+// for longer than this, the connection is aborted so the frontend isn't left
+// spinning forever.  Set conservatively high (4 min) to accommodate slower
+// models with long contexts.
+const STREAM_IDLE_TIMEOUT_MS = 240_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -179,8 +184,23 @@ export async function streamMaritaca(
             { id: string; name: string; arguments: string }
         > = {};
 
+        // Read with an idle timeout so a hanging Maritaca stream doesn't
+        // leave the frontend spinner on forever.
+        const readWithTimeout = (): Promise<{ done: boolean; value?: Uint8Array }> => {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(
+                    () => reject(new Error(`Maritaca stream idle for ${STREAM_IDLE_TIMEOUT_MS}ms`)),
+                    STREAM_IDLE_TIMEOUT_MS,
+                );
+                reader.read().then(
+                    (result) => { clearTimeout(timer); resolve(result as { done: boolean; value?: Uint8Array }); },
+                    (err)    => { clearTimeout(timer); reject(err); },
+                );
+            });
+        };
+
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await readWithTimeout();
             if (done) break;
 
             const chunk = decoder.decode(value, { stream: true });
@@ -206,10 +226,12 @@ export async function streamMaritaca(
 
                 if (typeof delta.content === "string" && delta.content) {
                     iterText += delta.content;
-                    if (!hasTools) {
-                        fullText += delta.content;
-                        callbacks.onContentDelta?.(delta.content);
-                    }
+                    // Emit content deltas immediately — do NOT buffer until
+                    // the end of the stream.  Even when tool calls are in
+                    // play the text that precedes them should stream
+                    // progressively to the client.
+                    fullText += delta.content;
+                    callbacks.onContentDelta?.(delta.content);
                 }
 
                 if (delta.tool_calls) {
@@ -240,10 +262,8 @@ export async function streamMaritaca(
         const toolCallsRaw = Object.values(toolCallAccumulator);
 
         if (!toolCallsRaw.length || !runTools) {
-            if (iterText && hasTools) {
-                fullText += iterText;
-                callbacks.onContentDelta?.(iterText);
-            }
+            // Content was already streamed incrementally above; nothing more
+            // to emit for a text-only turn.
             break;
         }
 
