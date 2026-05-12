@@ -22,6 +22,12 @@ export const CLAUDE_LOW_MODELS = ["claude-haiku-4-5"] as const;
 export const GEMINI_LOW_MODELS = ["gemini-3.1-flash-lite-preview"] as const;
 export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
 
+// Maritaca (Sabiá) models — API-compatible with OpenAI /v1/chat/completions
+// Base URL: https://chat.maritaca.ai/api
+export const MARITACA_MAIN_MODELS = ["sabia-4", "sabiazinho-4"] as const;
+export const MARITACA_MID_MODELS = ["sabia-3.1"] as const;
+export const MARITACA_LOW_MODELS = ["sabia-3", "sabiazinho-3"] as const;
+
 export const DEFAULT_MAIN_MODEL = "gemini-3-flash-preview";
 export const DEFAULT_TITLE_MODEL = "gemini-3.1-flash-lite-preview";
 export const DEFAULT_TABULAR_MODEL = "gemini-3-flash-preview";
@@ -36,6 +42,9 @@ const ALL_MODELS = new Set<string>([
     ...CLAUDE_LOW_MODELS,
     ...GEMINI_LOW_MODELS,
     ...OPENAI_LOW_MODELS,
+    ...MARITACA_MAIN_MODELS,
+    ...MARITACA_MID_MODELS,
+    ...MARITACA_LOW_MODELS,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -46,6 +55,7 @@ export function providerForModel(model: string): Provider {
     if (model.startsWith("claude")) return "claude";
     if (model.startsWith("gemini")) return "gemini";
     if (model.startsWith("gpt-")) return "openai";
+    if (model.startsWith("sabia") || model.startsWith("sabiazinho")) return "maritaca";
     throw new Error(`Unknown model id: ${model}`);
 }
 

@@ -3,7 +3,7 @@ import { createServerSupabase } from "./supabase";
 import type { UserApiKeys } from "./llm";
 
 type Db = ReturnType<typeof createServerSupabase>;
-export type ApiKeyProvider = "claude" | "gemini" | "openai";
+export type ApiKeyProvider = "claude" | "gemini" | "openai" | "maritaca";
 export type ApiKeySource = "user" | "env" | null;
 export type ApiKeyStatus = Record<ApiKeyProvider, boolean> & {
     sources: Record<ApiKeyProvider, ApiKeySource>;
@@ -16,7 +16,7 @@ type EncryptedKeyRow = {
     auth_tag: string;
 };
 
-const PROVIDERS: ApiKeyProvider[] = ["claude", "gemini", "openai"];
+const PROVIDERS: ApiKeyProvider[] = ["claude", "gemini", "openai", "maritaca"];
 
 function envApiKey(provider: ApiKeyProvider): string | null {
     if (provider === "claude") {
@@ -28,6 +28,9 @@ function envApiKey(provider: ApiKeyProvider): string | null {
     }
     if (provider === "openai") {
         return process.env.OPENAI_API_KEY?.trim() || null;
+    }
+    if (provider === "maritaca") {
+        return process.env.MARITACA_API_KEY?.trim() || null;
     }
     return process.env.GEMINI_API_KEY?.trim() || null;
 }
@@ -99,10 +102,12 @@ export async function getUserApiKeyStatus(
         claude: false,
         gemini: false,
         openai: false,
+        maritaca: false,
         sources: {
             claude: null,
             gemini: null,
             openai: null,
+            maritaca: null,
         },
     };
 
@@ -138,6 +143,7 @@ export async function getUserApiKeys(
         claude: envApiKey("claude"),
         gemini: envApiKey("gemini"),
         openai: envApiKey("openai"),
+        maritaca: envApiKey("maritaca"),
     };
 
     const { data, error } = await db
